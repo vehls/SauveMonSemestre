@@ -1,7 +1,8 @@
 'use client';
 
 import type { ToastState } from '@/hooks/useToast';
-import { Alert, Check } from './icons';
+import { isAdsenseEnabled } from '@/lib/ads';
+import { Alert, Check, Info } from './icons';
 
 interface ToastProps {
   toast: ToastState | null;
@@ -17,10 +18,9 @@ const VARIANT_STYLES: Record<ToastState['variant'], string> = {
 };
 
 /**
- * Notification "toast" flottante, positionnée en bas de l'écran. Sous `lg`,
- * elle remonte au-dessus de la bannière publicitaire mobile fixe
- * (`bottom-[calc(4.5rem+env(safe-area-inset-bottom))]`) ; à partir de `lg`
- * (bannière absente), elle reprend sa position classique (`bottom-5`).
+ * Notification "toast" flottante, positionnée en bas de l'écran. Quand la
+ * bannière publicitaire mobile est montée, elle remonte au-dessus ; sinon
+ * elle reste en `bottom-5`.
  */
 export function Toast({ toast }: ToastProps) {
   if (!toast) {
@@ -31,15 +31,15 @@ export function Toast({ toast }: ToastProps) {
     <div
       role="status"
       aria-live="polite"
-      className={`animate-toast-in fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex max-w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-xl bg-white/80 px-4 py-2.5 text-sm font-medium shadow-float backdrop-blur-md lg:bottom-5 ${VARIANT_STYLES[toast.variant]}`}
+      className={`animate-toast-in fixed left-1/2 z-50 flex max-w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-xl bg-white/80 px-4 py-2.5 text-sm font-medium shadow-float backdrop-blur-md ${
+        isAdsenseEnabled()
+          ? 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-5'
+          : 'bottom-5'
+      } ${VARIANT_STYLES[toast.variant]}`}
     >
       {toast.variant === 'success' && <Check className="shrink-0" />}
       {toast.variant === 'error' && <Alert className="shrink-0" />}
-      {toast.variant === 'info' && (
-        <span aria-hidden="true" className="shrink-0">
-          ℹ️
-        </span>
-      )}
+      {toast.variant === 'info' && <Info className="shrink-0" />}
       <span>{toast.message}</span>
     </div>
   );

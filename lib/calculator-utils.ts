@@ -11,9 +11,25 @@ import {
   type ValidationStatus,
 } from '../types/calculator';
 
-/** Arrondit à 2 décimales pour un affichage propre des moyennes. */
+/**
+ * Arrondit au centième, half up, comme `Math.round` sur les positifs
+ * (9,995 → 10,00 ; 7,995 → 8,00). Le produit `value * 100` est parfois
+ * juste sous le demi (9,995 × 100 = 999,4999…) : on lit donc les décimales
+ * déjà affichables, pour que la valeur comparée aux seuils soit celle
+ * montrée à l'écran.
+ */
 function round2(value: number): number {
-  return Math.round(value * 100) / 100;
+  if (!Number.isFinite(value)) {
+    return value;
+  }
+  const negative = value < 0;
+  const [whole, frac = ''] = Math.abs(value).toFixed(8).split('.');
+  let cents = Number(whole) * 100 + Number(frac.slice(0, 2) || '0');
+  if (frac[2] !== undefined && frac[2] >= '5') {
+    cents += 1;
+  }
+  const rounded = cents / 100;
+  return negative ? -rounded : rounded;
 }
 
 /**
@@ -32,14 +48,25 @@ function roundRequiredGradeUp(raw: number): number {
   return Math.ceil(raw * 100) / 100;
 }
 
-/** `coefficient` s'il est un nombre fini, sinon un poids nul (voir bug "NaN"). */
+/**
+ * Filet pour un coefficient déjà stocké (localStorage ancien). Non fini ou
+ * négatif → poids nul. `0` reste un poids nul.
+ */
 function safeCoefficient(coefficient: number): number {
-  return Number.isFinite(coefficient) ? coefficient : 0;
+  if (!Number.isFinite(coefficient) || coefficient < 0) return 0;
+  return coefficient;
 }
 
-/** `grade` s'il est un nombre fini, sinon `null` (traité comme "en attente"). */
+/**
+ * Filet pour une note déjà stockée. Hors `[0, 20]` ou non finie → `null`
+ * (examen en attente) : elle ne participe pas à la moyenne. Le clamp à la
+ * saisie vit dans `sanitizeGrade` ; ici on ne réécrit pas 25 en 20.
+ */
 function safeGrade(grade: number | null): number | null {
-  return grade !== null && Number.isFinite(grade) ? grade : null;
+  if (grade === null || !Number.isFinite(grade) || grade < 0 || grade > 20) {
+    return null;
+  }
+  return grade;
 }
 
 /**
@@ -145,22 +172,28 @@ function computeUEMinMaxPossible(ue: UE): { minPossible: number | null; maxPossi
 }
 
 /**
- * Calcule la moyenne maximale mathématiquement atteignable si toutes les
- * matières encore en attente obtenaient la note maximale (20/20). Sert à
- * distinguer un semestre réellement compromis d'un semestre simplement
- * incomplet (voir {@link calculateSemesterAverage}).
+ * Bornes du semestre sur le poids réel de chaque matière
+ * ({@link flattenSemester}), pas sur les moyennes partielles d'UE.
+ * - plancher : chaque examen sans note effective compte pour 0/20 ;
+ * - plafond : chacun compte pour 20/20.
+ *
+ * `null` s'il n'y a aucun poids positif. Les deux bornes sont encore
+ * brutes : l'appelant les arrondit au centième avant affichage et verdict.
  */
-function computeMaxPossibleAverage(
+function computeSemesterBounds(
   knownWeightedSum: number,
   knownWeight: number,
   pendingWeight: number,
-): number | null {
+): { floor: number; ceiling: number } | null {
   const totalWeight = knownWeight + pendingWeight;
   if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
     return null;
   }
   const MAX_GRADE = 20;
-  return (knownWeightedSum + pendingWeight * MAX_GRADE) / totalWeight;
+  return {
+    floor: knownWeightedSum / totalWeight,
+    ceiling: (knownWeightedSum + pendingWeight * MAX_GRADE) / totalWeight,
+  };
 }
 
 /** Une matière "aplatie" à l'échelle du semestre, avec son poids normalisé. */
@@ -243,14 +276,15 @@ function flattenSemester(semester: Semester): {
  *   **verrouillée**, c'est-à-dire certaine quel que soit le résultat des
  *   matières encore en attente de cette UE.
  *   - Éliminatoire : élimination active pour cette UE (seuil non `null`)
- *     ET (UE complète avec moyenne sous le seuil, OU moyenne maximale
- *     déjà sous le seuil — condamnée même incomplète).
- *   - Validée : moyenne minimale déjà au niveau du seuil de validation
- *     (couvre aussi, trivialement, une UE complète déjà au-dessus).
- *   - À compenser : élimination non déclenchée ET moyenne maximale sous
- *     le seuil de validation — cette UE aura besoin d'être compensée par
- *     le reste du semestre, quoi qu'il arrive dans ses propres matières
- *     en attente.
+ *     ET (UE complète dont la moyenne affichée au centième est sous le
+ *     seuil, OU maximum atteignable déjà sous le seuil une fois arrondi
+ *     au centième — condamnée même incomplète).
+ *   - Validée : minimum atteignable, arrondi au centième, déjà au niveau
+ *     du seuil de validation (couvre aussi une UE complète déjà au-dessus).
+ *   - À compenser : élimination non déclenchée ET maximum atteignable,
+ *     arrondi au centième, sous le seuil de validation — cette UE aura
+ *     besoin d'être compensée par le reste du semestre, quoi qu'il arrive
+ *     dans ses propres matières en attente.
  *   - Sinon, l'issue de l'UE reste ouverte (aucun des trois booléens).
  * - Une UE éliminatoire (y compris incomplète mais déjà condamnée) rend
  *   tout le semestre "Non validé", même si la moyenne générale atteint
@@ -265,12 +299,11 @@ function flattenSemester(semester: Semester): {
  *   moyenne partielle actuelle dépasse déjà `targetAverage` : rien n'est
  *   acquis avant que le semestre soit entièrement joué (ou simulé).
  * - S'il reste des matières en attente, on ne renvoie **pas** pour autant
- *   immédiatement "Non validé" : on calcule la moyenne maximale
- *   mathématiquement atteignable en supposant 20/20 à tous les examens
- *   restants (`maxPossibleAverage`).
- *   - Si cette moyenne maximale est strictement inférieure à
- *     `targetAverage`, l'objectif est mathématiquement hors de portée :
- *     le statut est "Non validé".
+ *   immédiatement "Non validé" : le plafond (20/20 aux examens sans note,
+ *   poids réel de chaque matière, puis centième) est comparé à la cible.
+ *   - Si ce plafond affiché est strictement inférieur à `targetAverage`,
+ *     l'objectif est mathématiquement hors de portée : le statut est
+ *     "Non validé".
  *   - Sinon, l'objectif reste possible : le statut est "En cours" si au
  *     moins une note est déjà connue, ou "À simuler" si aucune note n'a
  *     encore été saisie nulle part dans le semestre.
@@ -289,15 +322,11 @@ export function calculateSemesterAverage(
   let hasEliminatoryUE = false;
   let hasCompensatedUE = false;
 
-  // La moyenne générale affichée doit rester cohérente avec les moyennes de
-  // carte UE que l'utilisateur voit à l'écran : elle pondère la moyenne
-  // (déjà arrondie à 2 décimales, comme sur la carte) de chaque UE par son
-  // coefficient — pas les matières une par une, ce qui donnerait un chiffre
-  // différent dès qu'une UE contient plusieurs matières partiellement
-  // notées (le poids des examens en attente y serait alors implicitement
-  // retiré du dénominateur de CETTE UE plutôt que du semestre entier).
-  // Une UE sans aucune note effective (average === null), ou dont le
-  // coefficient n'est pas un nombre fini, est exclue du calcul (poids nul).
+  // Chiffre unique du verdict, publié seulement si le semestre est complet :
+  // moyenne (déjà arrondie au centième) de chaque UE, pondérée par le
+  // coefficient d'UE, puis arrondie à son tour. Une UE sans note effective
+  // est exclue. Tant qu'il reste un examen sans note, ce chiffre n'est pas
+  // la moyenne affichée : la barre montre la fourchette flattenSemester.
   let generalAverageNumerator = 0;
   let generalAverageDenominator = 0;
 
@@ -314,16 +343,23 @@ export function calculateSemesterAverage(
     const { average: ueAverage, isComplete } = computeUEAverage(ue);
     const { minPossible, maxPossible } = computeUEMinMaxPossible(ue);
 
+    // Même centième que la carte UE : half up avant toute comparaison de
+    // seuil. Un 9,995 brut s'affiche 10,00 et valide un seuil de 10.
+    const roundedAverage = ueAverage !== null ? round2(ueAverage) : null;
+    const roundedMinPossible = minPossible !== null ? round2(minPossible) : null;
+    const roundedMaxPossible = maxPossible !== null ? round2(maxPossible) : null;
+
     // Verdict verrouillé uniquement : chacun de ces trois booléens ne
     // devient vrai que si l'issue de l'UE est déjà certaine, quel que soit
     // le résultat de ses matières encore en attente (voir la doc de
     // {@link UEResult} et de cette fonction).
     const isEliminatory =
       eliminationActive &&
-      ((isComplete && ueAverage !== null && ueAverage < eliminationThreshold) ||
-        (maxPossible !== null && maxPossible < eliminationThreshold));
-    const isValidated = minPossible !== null && minPossible >= validationThreshold;
-    const needsCompensation = !isEliminatory && maxPossible !== null && maxPossible < validationThreshold;
+      ((isComplete && roundedAverage !== null && roundedAverage < eliminationThreshold) ||
+        (roundedMaxPossible !== null && roundedMaxPossible < eliminationThreshold));
+    const isValidated = roundedMinPossible !== null && roundedMinPossible >= validationThreshold;
+    const needsCompensation =
+      !isEliminatory && roundedMaxPossible !== null && roundedMaxPossible < validationThreshold;
 
     if (isEliminatory) {
       hasEliminatoryUE = true;
@@ -333,17 +369,15 @@ export function calculateSemesterAverage(
       hasCompensatedUE = true;
     }
 
-    const roundedUEAverage = ueAverage !== null ? round2(ueAverage) : null;
-
-    if (roundedUEAverage !== null) {
+    if (roundedAverage !== null) {
       const ueCoefficient = safeCoefficient(ue.coefficient);
-      generalAverageNumerator += roundedUEAverage * ueCoefficient;
+      generalAverageNumerator += roundedAverage * ueCoefficient;
       generalAverageDenominator += ueCoefficient;
     }
 
     ueResults.push({
       ueId: ue.id,
-      average: roundedUEAverage,
+      average: roundedAverage,
       isComplete,
       isEliminatory,
       isValidated,
@@ -351,19 +385,23 @@ export function calculateSemesterAverage(
     });
   }
 
-  const generalAverage =
+  // Centième du verdict complet : (9,99 + 10,00) / 2 = 9,995 brut, montré 10,00.
+  const roundedVerdict =
     Number.isFinite(generalAverageDenominator) && generalAverageDenominator > 0
-      ? generalAverageNumerator / generalAverageDenominator
+      ? round2(generalAverageNumerator / generalAverageDenominator)
       : null;
 
-  // La note minimale requise, elle, doit rester basée sur le poids
-  // normalisé de chaque MATIÈRE dans le semestre complet (via
-  // `flattenSemester`, partagé avec `analyzeRevisionStrategy`) : c'est ce
-  // niveau de détail qui permet de savoir exactement combien de poids
-  // reste "en attente" au semestre, indépendamment de la moyenne
-  // provisoire (et arrondie) affichée par UE ci-dessus.
+  // La note minimale requise et la fourchette du semestre incomplet
+  // passent par le poids normalisé de chaque MATIÈRE (`flattenSemester`,
+  // partagé avec `analyzeRevisionStrategy`). Ce n'est pas la moyenne
+  // partielle d'UE reprise à coefficient plein.
   const { knownWeightedSum, knownWeight, pendingWeight } = flattenSemester(semester);
-  const maxPossibleAverage = computeMaxPossibleAverage(knownWeightedSum, knownWeight, pendingWeight);
+  const rawBounds = computeSemesterBounds(knownWeightedSum, knownWeight, pendingWeight);
+  const averageRange =
+    pendingWeight > 0 && rawBounds !== null
+      ? { floor: round2(rawBounds.floor), ceiling: round2(rawBounds.ceiling) }
+      : null;
+  const generalAverage = pendingWeight === 0 ? roundedVerdict : null;
 
   let requiredGradeForPendingExams: number | null = null;
   if (pendingWeight > 0) {
@@ -382,11 +420,11 @@ export function calculateSemesterAverage(
     // simulation. On ne tranche JAMAIS "Validé"/"Compensé" ici, même si la
     // moyenne partielle actuelle atteint déjà la cible — seul un semestre
     // entièrement joué (ou simulé) peut être validé.
-    if (maxPossibleAverage !== null && maxPossibleAverage < targetAverage) {
+    if (averageRange !== null && averageRange.ceiling < targetAverage) {
       // Même 20/20 partout ne suffirait pas : l'objectif est déjà hors de
       // portée mathématiquement, pas besoin d'attendre la suite.
       status = 'Non validé';
-    } else if (generalAverage === null) {
+    } else if (knownWeight <= 0) {
       // Aucune note connue nulle part encore : rien à évaluer pour l'instant.
       status = 'À simuler';
     } else {
@@ -408,7 +446,8 @@ export function calculateSemesterAverage(
   }
 
   return {
-    generalAverage: generalAverage !== null ? round2(generalAverage) : null,
+    generalAverage,
+    averageRange,
     status,
     requiredGradeForPendingExams,
     ueResults,

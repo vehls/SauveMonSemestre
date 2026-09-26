@@ -1,10 +1,11 @@
 'use client';
 
-import type { ValidationStatus } from '@/types/calculator';
+import type { SemesterAverageRange, ValidationStatus } from '@/types/calculator';
 import { ProgressGauge } from './ProgressGauge';
 
 interface ResultsBarProps {
   generalAverage: number | null;
+  averageRange?: SemesterAverageRange | null;
   targetAverage: number;
   onTargetChange: (value: number) => void;
   status: ValidationStatus;
@@ -12,10 +13,10 @@ interface ResultsBarProps {
 
 const STATUS_STYLES: Record<ValidationStatus, string> = {
   'À simuler': 'bg-slate-100 text-slate-500',
-  'En cours': 'bg-sky-100 text-sky-700',
-  Validé: 'bg-emerald-100 text-emerald-700',
-  Compensé: 'bg-amber-100 text-amber-700',
-  'Non validé': 'bg-rose-100 text-rose-700',
+  'En cours': 'bg-status-info-50 text-status-info-700',
+  Validé: 'bg-status-ok-50 text-status-ok-700',
+  Compensé: 'bg-status-warn-50 text-status-warn-700',
+  'Non validé': 'bg-status-danger-50 text-status-danger-700',
 };
 
 /**
@@ -39,12 +40,18 @@ function sanitizeTargetAverage(raw: string): number {
  * note minimale à viser (une carte par matière en attente) vit désormais
  * juste sous cette barre, dans SemesterSimulator.
  */
-export function ResultsBar({ generalAverage, targetAverage, onTargetChange, status }: ResultsBarProps) {
+export function ResultsBar({
+  generalAverage,
+  averageRange = null,
+  targetAverage,
+  onTargetChange,
+  status,
+}: ResultsBarProps) {
   return (
-    <div className="sticky top-3 z-30 flex flex-col items-stretch gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 shadow-float backdrop-blur-md sm:gap-2 sm:px-5 sm:py-3.5">
+    <div className="sticky top-[7.5rem] z-30 flex flex-col items-stretch gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 py-3 shadow-float backdrop-blur-md sm:top-3 sm:gap-2 sm:px-5 sm:py-3.5">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
         <div className="sm:min-w-[220px] sm:flex-1">
-          <ProgressGauge average={generalAverage} targetAverage={targetAverage} />
+          <ProgressGauge average={generalAverage} range={averageRange} targetAverage={targetAverage} />
         </div>
 
         <div className="flex items-center justify-between gap-3 sm:contents">
@@ -55,6 +62,7 @@ export function ResultsBar({ generalAverage, targetAverage, onTargetChange, stat
             <input
               id="target-average"
               type="number"
+              inputMode="decimal"
               min={0}
               max={20}
               step={0.25}

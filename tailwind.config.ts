@@ -11,9 +11,6 @@ const config: Config = {
         // Police de texte courant : Plus Jakarta Sans (via next/font, voir
         // app/layout.tsx), avec repli système standard.
         sans: ['var(--font-jakarta)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        // Police "display" : Fraunces, réservée au wordmark et au chiffre
-        // de moyenne (voir Header et ProgressGauge).
-        display: ['var(--font-fraunces)', 'ui-serif', 'Georgia', 'serif'],
       },
       colors: {
         // Bleu marine profond : accents de fond, boutons primaires, branding.
@@ -42,6 +39,15 @@ const config: Config = {
           700: '#bd4128',
           800: '#963526',
           900: '#7a2e23',
+        },
+        // Statuts de validation et de simulation. Pas d'autre palette
+        // que navy, corail et ces cinq rôles.
+        status: {
+          ok: { 50: '#ecfdf5', 500: '#10b981', 700: '#047857' },
+          warn: { 50: '#fffbeb', 500: '#f59e0b', 700: '#b45309' },
+          danger: { 50: '#fff1f2', 500: '#f43f5e', 700: '#be123c' },
+          info: { 50: '#f0f9ff', 500: '#0ea5e9', 700: '#0369a1' },
+          sim: { 50: '#f5f3ff', 500: '#7c3aed', 700: '#6d28d9' },
         },
       },
       boxShadow: {

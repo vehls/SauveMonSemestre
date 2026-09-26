@@ -10,12 +10,12 @@ interface EmptyStateProps {
  */
 export function EmptyState({ onAddFirstUE }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-6 rounded-3xl border border-slate-200/70 bg-white px-6 py-14 text-center shadow-premium">
+    <div className="flex flex-col items-center gap-6 rounded-2xl border border-slate-200/70 bg-white px-6 py-14 text-center shadow-premium">
       <EmptyStateIllustration className="h-40 w-40" />
 
       <div className="max-w-sm space-y-1.5">
-        <h2 className="text-lg font-bold text-slate-800">Calcule ta moyenne avant les résultats</h2>
-        <p className="text-sm text-slate-500">
+        <h2 className="type-section">Calcule ta moyenne avant les résultats</h2>
+        <p className="type-body">
           Pose tes UE, tes coeffs, tes notes. Tu vois si tu valides, si tu compenses, et la note
           minimale qu&apos;il te reste à avoir.
         </p>
@@ -33,7 +33,7 @@ export function EmptyState({ onAddFirstUE }: EmptyStateProps) {
       <button
         type="button"
         onClick={onAddFirstUE}
-        className="btn btn-primary px-6 py-3 text-sm hover:-translate-y-0.5 hover:shadow-xl hover:shadow-navy-900/30"
+        className="btn btn-primary px-6 py-3 text-sm transition-shadow"
       >
         <span aria-hidden="true">+</span> Ajouter ma première UE
       </button>

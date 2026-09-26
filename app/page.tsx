@@ -1,4 +1,5 @@
 import { AdSlot } from '@/components/AdSlot';
+import { isAdsenseEnabled } from '@/lib/ads';
 import { Faq } from '@/components/Faq';
 import { Footer } from '@/components/Footer';
 import { MobileAdBanner } from '@/components/MobileAdBanner';
@@ -29,20 +30,28 @@ export default function Home() {
 
   return (
     <>
-      <main className="mx-auto max-w-6xl px-4 py-8 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 lg:pb-8">
+      <main
+        className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 ${
+          isAdsenseEnabled()
+            ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8'
+            : 'pb-8'
+        }`}
+      >
         <div className="flex items-start gap-8">
           <div className="min-w-0 flex-1 space-y-8">
             <SemesterSimulator />
             <Faq />
           </div>
 
-          {/* Sidebar publicitaire, réservée au desktop : ne perturbe jamais
-              la mise en page ni l'usage sur mobile/tablette. */}
-          <aside className="hidden w-[300px] shrink-0 lg:block">
-            <div className="sticky top-8">
-              <AdSlot placement="sidebar" minHeight={600} className="w-[300px]" />
-            </div>
-          </aside>
+          {/* Sidebar publicitaire, réservée au desktop, uniquement si AdSense
+              est configuré. */}
+          {isAdsenseEnabled() ? (
+            <aside className="hidden w-[300px] shrink-0 lg:block">
+              <div className="sticky top-8">
+                <AdSlot placement="sidebar" minHeight={600} className="w-[300px]" />
+              </div>
+            </aside>
+          ) : null}
         </div>
       </main>
 

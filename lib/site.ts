@@ -1,8 +1,7 @@
 export const SITE_NAME = 'SauveMonSemestre';
 
-/** Titre indexable : mot-clé en tête, marque en fin, ~60 caractères. */
-export const SEO_TITLE =
-  'Calcul moyenne semestre universitaire | SauveMonSemestre';
+/** Titre indexable : marque en tête, mot-clé conservé, moins de 60 caractères. */
+export const SEO_TITLE = 'SauveMonSemestre — calcul moyenne universitaire';
 
 /** ~150 caractères : bénéfice + différenciateur + confiance. */
 export const SEO_DESCRIPTION =

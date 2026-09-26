@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import Script from 'next/script';
 import { OG_DESCRIPTION, OG_TITLE, SEO_DESCRIPTION, SEO_KEYWORDS, SEO_TITLE, SITE_NAME } from '@/lib/site';
 import './globals.css';
@@ -18,24 +18,13 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 /**
- * Police "display", réservée au wordmark ("SauveMonSemestre") et au
- * chiffre de la moyenne générale — jamais au texte courant.
- */
-const fraunces = Fraunces({
-  weight: ['600'],
-  subsets: ['latin'],
-  variable: '--font-fraunces',
-  display: 'swap',
-});
-
-/**
  * URL publique du site, utilisée pour générer des URLs absolues (OpenGraph,
  * Twitter Card, sitemap...). À définir via `NEXT_PUBLIC_SITE_URL` une fois
  * le site déployé (voir `.env.example`) ; retombe sur `localhost` en dev.
  */
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -56,20 +45,19 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: OG_TITLE,
     description: OG_DESCRIPTION,
-    // Ajoute une image `public/og-image.png` (1200x630) puis décommente pour
-    // un aperçu illustré sur les réseaux sociaux :
-    // images: [{ url: '/og-image.png', width: 1200, height: 630, alt: SITE_NAME }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: SITE_NAME }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: OG_TITLE,
     description: OG_DESCRIPTION,
+    images: ['/og-image.png'],
   },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr" className={`${plusJakartaSans.variable} ${fraunces.variable}`}>
+    <html lang="fr" className={plusJakartaSans.variable}>
       <body className="min-h-screen text-slate-900 antialiased">
         {children}
 

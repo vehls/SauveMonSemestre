@@ -13,6 +13,44 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function clampGrade(value: number): number {
+  return Math.min(20, Math.max(0, value));
+}
+
+/**
+ * Note réelle saisie. Vide ou non convertible → `null` (examen non noté).
+ * Un nombre fini est ramené dans `[0, 20]`.
+ */
+export function sanitizeGrade(raw: string): number | null {
+  if (raw === '') return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? clampGrade(parsed) : null;
+}
+
+/**
+ * Saisie du champ de simulation.
+ * - vide → `null` : la simulation est annulée, jamais remplacée par 0 ;
+ * - frappe non finie (`"."`, `"-"`) → `undefined` : on garde la valeur
+ *   précédente ;
+ * - nombre fini → clampé à `[0, 20]`.
+ */
+export function sanitizeSimulatedGrade(raw: string): number | null | undefined {
+  if (raw === '') return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return undefined;
+  return clampGrade(parsed);
+}
+
+/**
+ * Coefficient d'UE ou de matière. Vide, non fini ou négatif → `0`
+ * (poids nul). Même règle des deux côtés.
+ */
+export function sanitizeCoefficient(raw: string): number {
+  const parsed = Number(raw);
+  if (raw === '' || !Number.isFinite(parsed) || parsed < 0) return 0;
+  return parsed;
+}
+
 function isValidFutureGrade(value: unknown): value is FutureGradeSimulation {
   if (!value || typeof value !== 'object') return false;
   const futureGrade = value as Partial<FutureGradeSimulation>;
@@ -60,6 +98,10 @@ function isValidUE(value: unknown): value is UE {
  * Valide qu'une valeur désérialisée depuis `localStorage` a bien la forme
  * complète attendue d'un {@link Semester}. Retourne `false` pour `null`,
  * `{}`, un nombre, un tableau, ou toute UE/EC malformée.
+ *
+ * Une note hors `[0, 20]` ou un coefficient négatif déjà stockés restent
+ * acceptés : la grille n'est pas effacée. Le calcul les neutralise à la
+ * lecture (`safeGrade`, `safeCoefficient`).
  */
 export function isValidSemester(value: unknown): value is Semester {
   if (!value || typeof value !== 'object') return false;

@@ -18,6 +18,7 @@ import { Header } from './Header';
 import { Alert, Check, Target } from './icons';
 import { ImportGridBanner } from './ImportGridBanner';
 import { ResultsBar } from './ResultsBar';
+import { VerdictGroups } from './VerdictGroups';
 import { RevisionStrategy } from './RevisionStrategy';
 import { RevisionStrategyTeaser } from './RevisionStrategyTeaser';
 import { ShareGrid } from './ShareGrid';
@@ -70,12 +71,12 @@ function RequiredGradeCard({
   let message: ReactNode =
     pendingCount > 1 ? (
       <>
-        Vise <span className="font-display text-navy-950">{required.toFixed(2)}</span>/20 ici, la même
+        Vise <span className="font-sans font-semibold tabular-nums lining-nums text-navy-950">{required.toFixed(2)}</span>/20 ici, la même
         note qu&apos;à chacun des {pendingCount} examens encore en attente.
       </>
     ) : (
       <>
-        Vise <span className="font-display text-navy-950">{required.toFixed(2)}</span>/20 ici.
+        Vise <span className="font-sans font-semibold tabular-nums lining-nums text-navy-950">{required.toFixed(2)}</span>/20 ici.
       </>
     );
 
@@ -90,7 +91,7 @@ function RequiredGradeCard({
   }
 
   return (
-    <div key={ecId} className={`flex min-w-0 items-center gap-3 rounded-xl border px-4 py-3 ${cardClassName}`}>
+    <div key={ecId} className={`flex min-w-0 items-center gap-3 rounded-2xl border px-4 py-3 ${cardClassName}`}>
       {icon}
       <div className="min-w-0 break-words text-sm">
         <p className="font-medium text-slate-700">
@@ -186,13 +187,21 @@ export function SemesterSimulator() {
   // temps réel (le <title> statique défini dans app/layout.tsx sert de
   // valeur par défaut pour le SEO/les aperçus de partage).
   useEffect(() => {
-    if (semester.ues.length === 0 || result.generalAverage === null) {
+    if (semester.ues.length === 0) {
       document.title = SEO_TITLE;
       return;
     }
-    const averageLabel = result.generalAverage !== null ? `${result.generalAverage.toFixed(2)}/20` : '—/20';
-    document.title = `${averageLabel} · ${result.status} — SauveMonSemestre`;
-  }, [result.generalAverage, result.status, semester.ues.length]);
+    if (result.averageRange) {
+      const { floor, ceiling } = result.averageRange;
+      document.title = `${floor.toFixed(2)}–${ceiling.toFixed(2)}/20 · ${result.status} — SauveMonSemestre`;
+      return;
+    }
+    if (result.generalAverage === null) {
+      document.title = SEO_TITLE;
+      return;
+    }
+    document.title = `${result.generalAverage.toFixed(2)}/20 · ${result.status} — SauveMonSemestre`;
+  }, [result.averageRange, result.generalAverage, result.status, semester.ues.length]);
 
   const addUE = () => {
     const newUE: UE = {
@@ -261,9 +270,17 @@ export function SemesterSimulator() {
       {/* Barre de résultats sticky : reste visible pendant le défilement. */}
       <ResultsBar
         generalAverage={result.generalAverage}
+        averageRange={result.averageRange}
         targetAverage={targetAverage}
         onTargetChange={setTargetAverage}
         status={result.status}
+      />
+
+      <VerdictGroups
+        ues={semester.ues}
+        ueResults={result.ueResults}
+        status={result.status}
+        semesterIncomplete={result.averageRange !== null}
       />
 
       {/* Note minimale à viser : une carte par matière en attente (même
@@ -275,7 +292,7 @@ export function SemesterSimulator() {
         result.requiredGradeForPendingExams !== null &&
         revisionAdvice.length > 0 && (
           <section className="space-y-2">
-            <h2 className="px-1 text-sm font-semibold text-slate-600">Note minimale à viser</h2>
+            <h2 className="type-section px-1">Note minimale à viser</h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {revisionAdvice.map((item) => (
                 <RequiredGradeCard

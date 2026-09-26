@@ -27,12 +27,12 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'Validé, compensé ou non validé : quelle différence ?',
     answer:
-      "Validé : chaque UE atteint son seuil. Compensé : la moyenne du semestre atteint l'objectif (souvent 10/20) alors qu'une ou plusieurs UE sont en dessous, sans note éliminatoire. Non validé : la moyenne générale est trop basse, ou une UE éliminatoire bloque la compensation.",
+      "Validé : chaque UE atteint son seuil. Compensé : la moyenne du semestre atteint l'objectif (souvent 10/20) alors qu'une ou plusieurs UE sont en dessous, sans note éliminatoire. Non validé : la moyenne générale est trop basse, ou une UE éliminatoire bloque la compensation. Une UE acquise se capitalise : tu la gardes même si le semestre n'est pas validé ; une UE seulement compensée ne l'est que si le semestre ou l'année est validé, sinon tu la repasses. C'est le règlement le plus courant, vérifie le tien.",
   },
   {
     question: 'Quelle note minimale faut-il pour valider son semestre ?',
     answer:
-      "Ça dépend de tes coefficients et des notes déjà obtenues. Pour chaque matière encore en blanc, le simulateur calcule la note plancher qui te fait atteindre ton objectif. S'il est déjà sûr, ou mathématiquement impossible, il te le dit aussi.",
+      "Ça dépend de tes coefficients et des notes déjà obtenues. Le simulateur calcule une note cible uniforme, la même sur chaque matière encore en blanc, pour atteindre ton objectif. S'il est déjà sûr, ou mathématiquement impossible, il te le dit aussi.",
   },
   {
     question: 'Les seuils 10/20 et 8/20 sont-ils les mêmes dans toutes les facs ?',
@@ -70,10 +70,10 @@ export function Faq() {
 
   return (
     <section aria-labelledby="faq-heading" className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-rest">
-      <h2 id="faq-heading" className="text-lg font-bold text-slate-900">
+      <h2 id="faq-heading" className="type-section">
         Compensation universitaire : comment ta moyenne est vraiment calculée
       </h2>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="type-body mt-1">
         Compensation, note éliminatoire, validé ou compensé. Ce que le règlement des études dit
         en 40 pages, en clair.
       </p>
@@ -81,7 +81,7 @@ export function Faq() {
       <div className="mt-4 divide-y divide-slate-100">
         {FAQ_ITEMS.map((item) => (
           <details key={item.question} className="group py-3 first:pt-0 last:pb-0">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-slate-800 marker:content-none">
+            <summary className="btn btn-ghost min-h-11 w-full cursor-pointer list-none justify-between px-4 text-sm marker:content-none">
               {item.question}
               <span
                 aria-hidden="true"

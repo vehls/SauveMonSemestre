@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateSemesterAverage } from '../calculator-utils';
+import { sanitizeSimulatedGrade } from '../validation';
 import type { EC, Semester, UE } from '../../types/calculator';
 
 /** Petit constructeur pour garder les scénarios de test courts et lisibles. */
@@ -33,6 +34,7 @@ describe('calculateSemesterAverage', () => {
     const result = calculateSemesterAverage(makeSemester([]), 10);
 
     expect(result.generalAverage).toBeNull();
+    expect(result.averageRange).toBeNull();
     expect(result.status).toBe('À simuler');
     expect(result.requiredGradeForPendingExams).toBeNull();
   });
@@ -56,7 +58,10 @@ describe('calculateSemesterAverage', () => {
 
       const result = calculateSemesterAverage(semester, 10);
 
-      expect(result.generalAverage).toBe(14);
+      // Poids réel : 14 et un examen à 0 donnent 7,00 ; à 20, 17,00.
+      // Pas de chiffre unique tant que le semestre est incomplet.
+      expect(result.generalAverage).toBeNull();
+      expect(result.averageRange).toEqual({ floor: 7, ceiling: 17 });
       expect(result.status).toBe('En cours');
       expect(result.status).not.toBe('Validé');
       expect(result.status).not.toBe('Compensé');
@@ -105,6 +110,7 @@ describe('calculateSemesterAverage', () => {
     const result = calculateSemesterAverage(semester, 10);
 
     expect(result.generalAverage).toBe(14);
+    expect(result.averageRange).toBeNull();
     expect(result.status).toBe('Validé');
     expect(result.requiredGradeForPendingExams).toBeNull();
   });
@@ -233,19 +239,14 @@ describe('calculateSemesterAverage', () => {
     expect(result.status).toBe('En cours');
   });
 
-  // Bug 1 — la moyenne générale doit rester cohérente avec les moyennes
-  // d'UE affichées : elle pondère la moyenne (arrondie) de chaque UE par
-  // son coefficient, pas les matières une par une (ce qui retirerait
-  // implicitement le poids des examens en attente du dénominateur d'une
-  // seule UE plutôt que du semestre entier).
+  // Semestre incomplet : la barre n'affiche pas la projection « moyennes
+  // partielles d'UE à coefficient plein » (ici 13). Elle affiche la
+  // fourchette sur le poids réel de chaque matière.
   it(
-    'la moyenne générale pondère les moyennes d\'UE affichées, pas les ' +
-      'matières une par une (une UE partiellement notée ne doit pas fausser ' +
-      'le poids des autres UE)',
+    'une UE partielle à 10 et une UE complète à 16 donnent la fourchette ' +
+      '10,50–15,50, pas un chiffre unique 13',
     () => {
       const semester = makeSemester([
-        // UE1 : une matière notée à 10, une autre encore en attente ->
-        // moyenne (partielle) de carte = 10.
         makeUE({
           id: 'ue1',
           coefficient: 1,
@@ -254,7 +255,6 @@ describe('calculateSemesterAverage', () => {
             makeEC({ id: 'ec2', coefficient: 1, grade: null }),
           ],
         }),
-        // UE2 : complète, moyenne de carte = 16.
         makeUE({
           id: 'ue2',
           coefficient: 1,
@@ -264,12 +264,52 @@ describe('calculateSemesterAverage', () => {
 
       const result = calculateSemesterAverage(semester, 10);
 
-      // (10*1 + 16*1) / (1 + 1) = 13, PAS 14 (ce que donnerait une
-      // pondération matière par matière qui retire le poids de l'examen
-      // en attente du dénominateur de l'UE1 uniquement).
-      expect(result.generalAverage).toBe(13);
+      // Plancher (examen blanc à 0) : (10×0,5 + 16×1) / 2 = 10,50.
+      // Plafond (examen blanc à 20) : (10×0,5 + 20×0,5 + 16×1) / 2 = 15,50.
+      expect(result.generalAverage).toBeNull();
+      expect(result.averageRange).toEqual({ floor: 10.5, ceiling: 15.5 });
       expect(result.ueResults.find((r) => r.ueId === 'ue1')?.average).toBe(10);
       expect(result.ueResults.find((r) => r.ueId === 'ue2')?.average).toBe(16);
+      expect(result.status).toBe('En cours');
+    },
+  );
+
+  it(
+    'une UE à 18 plus un examen blanc, et une UE à 4, donnent la fourchette ' +
+      '6,50–11,50 : pas une moyenne acquise de 11',
+    () => {
+      const semester = makeSemester([
+        makeUE({
+          id: 'ue1',
+          coefficient: 1,
+          ecs: [
+            makeEC({ id: 'ec1', coefficient: 1, grade: 18 }),
+            makeEC({ id: 'ec2', coefficient: 1, grade: null }),
+          ],
+        }),
+        // Élimination désactivée : une UE complète à 4 sous le seuil par
+        // défaut (8) rendrait le semestre « Non validé ». Ici le cas
+        // verrouille la fourchette d'un semestre encore ouvert.
+        makeUE({
+          id: 'ue2',
+          coefficient: 1,
+          eliminationThreshold: null,
+          ecs: [makeEC({ id: 'ec3', coefficient: 1, grade: 4 })],
+        }),
+      ]);
+
+      const result = calculateSemesterAverage(semester, 10);
+
+      // Ancienne projection (moyennes partielles à coefficient plein) : 11.
+      // Poids réel : plancher (18×0,5 + 4) / 2 = 6,50 ; plafond
+      // (18×0,5 + 20×0,5 + 4) / 2 = 11,50.
+      expect(result.generalAverage).toBeNull();
+      expect(result.generalAverage).not.toBe(11);
+      expect(result.averageRange).toEqual({ floor: 6.5, ceiling: 11.5 });
+      expect(result.ueResults.find((r) => r.ueId === 'ue1')?.average).toBe(18);
+      expect(result.ueResults.find((r) => r.ueId === 'ue1')?.isComplete).toBe(false);
+      expect(result.ueResults.find((r) => r.ueId === 'ue2')?.average).toBe(4);
+      expect(result.ueResults.find((r) => r.ueId === 'ue2')?.isEliminatory).toBe(false);
       expect(result.status).toBe('En cours');
     },
   );
@@ -493,6 +533,162 @@ describe('calculateSemesterAverage', () => {
       const ue1 = result.ueResults.find((r) => r.ueId === 'ue1');
       expect(ue1?.isEliminatory).toBe(true);
       expect(result.status).toBe('Non validé');
+    },
+  );
+
+  // Les seuils comparent le centième affiché (half up), pas la moyenne brute.
+  it(
+    'une UE complète à 9,995 s\'affiche 10,00 : validée pour un seuil de 10, pas à compenser',
+    () => {
+      const semester = makeSemester([
+        makeUE({
+          id: 'ue1',
+          coefficient: 1,
+          validationThreshold: 10,
+          ecs: [makeEC({ id: 'ec1', coefficient: 1, grade: 9.995 })],
+        }),
+      ]);
+
+      const result = calculateSemesterAverage(semester, 10);
+      const ue1 = result.ueResults.find((r) => r.ueId === 'ue1');
+
+      expect(ue1?.isComplete).toBe(true);
+      expect(ue1?.average).toBe(10);
+      expect(ue1?.isValidated).toBe(true);
+      expect(ue1?.needsCompensation).toBe(false);
+    },
+  );
+
+  it(
+    'une UE complète à 7,996 s\'affiche 8,00 : pas éliminatoire pour un seuil de 8',
+    () => {
+      const semester = makeSemester([
+        makeUE({
+          id: 'ue1',
+          coefficient: 1,
+          eliminationThreshold: 8,
+          ecs: [makeEC({ id: 'ec1', coefficient: 1, grade: 7.996 })],
+        }),
+      ]);
+
+      const result = calculateSemesterAverage(semester, 10);
+      const ue1 = result.ueResults.find((r) => r.ueId === 'ue1');
+
+      expect(ue1?.isComplete).toBe(true);
+      expect(ue1?.average).toBe(8);
+      expect(ue1?.isEliminatory).toBe(false);
+    },
+  );
+
+  it(
+    'deux UE déjà au centième 9,99 et 10,00 affichent un semestre à 10,00, compensé, jamais non validé',
+    () => {
+      const semester = makeSemester([
+        makeUE({
+          id: 'ue1',
+          coefficient: 1,
+          ecs: [makeEC({ id: 'ec1', coefficient: 1, grade: 9.99 })],
+        }),
+        makeUE({
+          id: 'ue2',
+          coefficient: 1,
+          ecs: [makeEC({ id: 'ec2', coefficient: 1, grade: 10 })],
+        }),
+      ]);
+
+      const result = calculateSemesterAverage(semester, 10);
+      const ue1 = result.ueResults.find((r) => r.ueId === 'ue1');
+      const ue2 = result.ueResults.find((r) => r.ueId === 'ue2');
+
+      expect(ue1?.average).toBe(9.99);
+      expect(ue1?.needsCompensation).toBe(true);
+      expect(ue2?.average).toBe(10);
+      expect(ue2?.isValidated).toBe(true);
+      expect(result.generalAverage).toBe(10);
+      expect(result.status).toBe('Compensé');
+      expect(result.status).not.toBe('Non validé');
+    },
+  );
+
+  it('une note 25 et une note -3 ne participent pas à la moyenne', () => {
+    const semester = makeSemester([
+      makeUE({
+        id: 'ue1',
+        coefficient: 1,
+        ecs: [
+          makeEC({ id: 'ec-high', coefficient: 1, grade: 25 }),
+          makeEC({ id: 'ec-low', coefficient: 1, grade: -3 }),
+          makeEC({ id: 'ec-ok', coefficient: 1, grade: 12 }),
+          makeEC({
+            id: 'ec-sim',
+            coefficient: 1,
+            grade: null,
+            futureGrade: { mode: 'simulated', value: 25 },
+          }),
+        ],
+      }),
+    ]);
+
+    const result = calculateSemesterAverage(semester, 10);
+    const ue1 = result.ueResults.find((r) => r.ueId === 'ue1');
+
+    // Seule la note 12 compte. 25, -3 et une simulation à 25 sont en attente.
+    expect(ue1?.average).toBe(12);
+    expect(ue1?.isComplete).toBe(false);
+    expect(result.generalAverage).toBeNull();
+    expect(result.status).toBe('En cours');
+  });
+
+  it('un coefficient -1 est un poids nul et ne fait pas baisser la moyenne', () => {
+    const semester = makeSemester([
+      makeUE({
+        id: 'ue1',
+        coefficient: 1,
+        ecs: [
+          makeEC({ id: 'ec1', coefficient: 1, grade: 18 }),
+          makeEC({ id: 'ec2', coefficient: -1, grade: 0 }),
+        ],
+      }),
+      makeUE({
+        id: 'ue2',
+        coefficient: -1,
+        ecs: [makeEC({ id: 'ec3', coefficient: 1, grade: 12 })],
+      }),
+    ]);
+
+    const result = calculateSemesterAverage(semester, 10);
+
+    expect(result.ueResults.find((r) => r.ueId === 'ue1')?.average).toBe(18);
+    expect(result.generalAverage).toBe(18);
+    expect(result.status).toBe('Validé');
+  });
+
+  it(
+    'effacer le champ SIM retire la simulation : le semestre redevient incomplet et un 0 n\'est pas compté',
+    () => {
+      const cleared = sanitizeSimulatedGrade('');
+      expect(cleared).toBeNull();
+
+      const semester = makeSemester([
+        makeUE({
+          id: 'ue1',
+          coefficient: 1,
+          ecs: [
+            makeEC({ id: 'ec1', coefficient: 1, grade: 16 }),
+            makeEC({ id: 'ec2', coefficient: 1, grade: null, futureGrade: null }),
+          ],
+        }),
+      ]);
+
+      const result = calculateSemesterAverage(semester, 10);
+      const ue1 = result.ueResults.find((r) => r.ueId === 'ue1');
+
+      // (16 + 0) / 2 = 8 serait la moyenne si le champ vidé écrivait 0.
+      expect(ue1?.average).toBe(16);
+      expect(ue1?.isComplete).toBe(false);
+      expect(result.generalAverage).toBeNull();
+      expect(result.averageRange).toEqual({ floor: 8, ceiling: 18 });
+      expect(result.status).toBe('En cours');
     },
   );
 });

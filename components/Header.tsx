@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { GraduationCap, Plus, RotateCcw } from './icons';
+import { Plus, RotateCcw } from './icons';
+import { LogoMark } from './LogoMark';
 
 interface HeaderProps {
   onAddUE: () => void;
@@ -45,27 +46,26 @@ export function Header({ onAddUE, onReset }: HeaderProps) {
   };
 
   return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-3">
-        <div
-          aria-hidden="true"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-white shadow-sm shadow-navy-900/30"
-        >
-          <GraduationCap />
-        </div>
-        <div>
-          <h1 className="font-display text-xl tracking-tight text-navy-950">SauveMonSemestre</h1>
-          <p className="text-xs font-medium text-slate-500">
-            Ta moyenne. Ta compensation. La note qu&apos;il te faut.
-          </p>
-        </div>
-      </div>
+    <header className="sticky top-0 z-20 -mx-4 flex flex-col gap-4 border-b border-slate-200/70 bg-white/80 px-4 py-2 backdrop-blur-md sm:static sm:z-auto sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:border-b-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+      <a
+        href="#haut"
+        onClick={(event) => {
+          event.preventDefault();
+          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        }}
+        className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-navy-500/25"
+      >
+        <LogoMark className="h-8 w-8 shrink-0" />
+        <h1 className="type-wordmark min-w-0 truncate">SauveMonSemestre</h1>
+        <span className="sr-only">Retour en haut de la page</span>
+      </a>
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         <button
           type="button"
           onClick={onAddUE}
-          className="btn btn-primary min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto"
+          className="btn btn-primary min-h-11 flex-1 px-4 py-2.5 text-sm sm:w-auto sm:flex-none"
         >
           <Plus className="h-4 w-4" /> Ajouter une UE
         </button>
@@ -73,11 +73,13 @@ export function Header({ onAddUE, onReset }: HeaderProps) {
           ref={resetButtonRef}
           type="button"
           onClick={handleResetClick}
-          className={`btn min-h-11 w-full px-4 py-2.5 text-sm sm:w-auto ${
-            isConfirmingReset ? 'bg-rose-50 text-rose-700' : 'btn-ghost'
+          aria-label={isConfirmingReset ? 'Confirmer la réinitialisation' : 'Réinitialiser'}
+          className={`btn min-h-11 shrink-0 px-3 py-2.5 text-sm sm:px-4 ${
+            isConfirmingReset ? 'btn-danger' : 'btn-ghost'
           }`}
         >
-          <RotateCcw className="h-4 w-4" /> {isConfirmingReset ? 'Confirmer ?' : 'Réinitialiser'}
+          <RotateCcw className="h-4 w-4" />
+          <span>{isConfirmingReset ? 'Confirmer ?' : 'Réinitialiser'}</span>
         </button>
       </div>
     </header>

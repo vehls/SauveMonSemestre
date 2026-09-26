@@ -19,17 +19,21 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition active:scale-[0.98] disabled:pointer-events-none;
+    @apply inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl font-semibold transition active:scale-[0.98] disabled:pointer-events-none;
   }
   .btn:focus-visible {
     @apply outline-none ring-4 ring-navy-500/25;
+  }
+  .btn:disabled,
+  .btn[disabled] {
+    @apply opacity-40;
   }
 
   .btn-primary {
     @apply bg-navy-900 text-white shadow-sm shadow-navy-900/25;
   }
   .btn-primary:hover {
-    @apply bg-navy-800;
+    @apply bg-navy-800 shadow-premium;
   }
 
   .btn-ghost {
@@ -37,6 +41,34 @@
   }
   .btn-ghost:hover {
     @apply bg-slate-200;
+  }
+
+  .btn-danger {
+    @apply bg-rose-50 text-rose-700 transition-colors;
+  }
+  .btn-danger:hover {
+    @apply bg-rose-100;
+  }
+
+  /*
+   * Échelle typo verrouillée. Chaque rôle se compose en HTML
+   * (ex. `type-section` + les classes de mise en page), jamais via un
+   * @apply qui en appellerait un autre. Plancher d'interface : text-xs.
+   */
+  .type-wordmark {
+    @apply font-sans text-lg font-bold tracking-tighter text-navy-950 sm:text-xl;
+  }
+  .type-section {
+    @apply text-base font-semibold tracking-tight text-slate-900;
+  }
+  .type-card-title {
+    @apply text-base font-semibold text-slate-900;
+  }
+  .type-body {
+    @apply text-sm leading-relaxed text-slate-600;
+  }
+  .type-meta {
+    @apply text-xs font-medium text-slate-500;
   }
 }
 
@@ -70,6 +102,21 @@ body {
 
 .animate-toast-in {
   animation: toast-in 180ms ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise 200ms ease-out;
 }
 
 /* Respecte la préférence système "mouvement réduit" : coupe toute

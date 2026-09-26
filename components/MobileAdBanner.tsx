@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdsenseEnabled } from '@/lib/ads';
 import { AdSlot } from './AdSlot';
 
 /**
@@ -9,6 +10,8 @@ import { AdSlot } from './AdSlot';
  * dessous (voir `app/page.tsx`).
  */
 export function MobileAdBanner() {
+  if (!isAdsenseEnabled()) return null;
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
       <AdSlot placement="mobile-bottom" minHeight={50} className="mx-auto max-w-md" />

@@ -101,10 +101,10 @@ export function ShareGrid({ semester }: ShareGridProps) {
   return (
     <section className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-rest">
       <div>
-        <h2 className="flex items-center gap-2 text-base font-bold text-slate-800">
+        <h2 className="type-section flex items-center gap-2">
           <Link className="h-5 w-5" /> Passe la grille à ta promo
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="type-body">
           UE, matières, coefficients. Jamais tes notes.
         </p>
       </div>
@@ -113,21 +113,21 @@ export function ShareGrid({ semester }: ShareGridProps) {
         <button
           type="button"
           onClick={handleWhatsAppShare}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-navy-500/25"
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-navy-500/25"
         >
           Envoyer sur WhatsApp
         </button>
         <button
           type="button"
           onClick={handleDiscordCopy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          className="btn btn-ghost min-h-11 px-4 text-sm"
         >
           Copier pour Discord
         </button>
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          className="btn btn-ghost min-h-11 px-4 text-sm"
         >
           Copier le lien
         </button>
@@ -141,7 +141,7 @@ export function ShareGrid({ semester }: ShareGridProps) {
             value={shareUrl}
             onFocus={(event) => event.target.select()}
             aria-label="Lien de partage de la grille"
-            className="field min-w-0 flex-1 text-xs text-slate-600"
+            className="field min-w-0 flex-1 text-slate-600"
           />
         </div>
       )}

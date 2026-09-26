@@ -8,12 +8,15 @@
  * Règles de compensation (système universitaire français classique) :
  * - Chaque UE possède un seuil de validation (par défaut 10/20) et un seuil
  *   d'élimination (par défaut 8/20).
- * - Une UE dont la moyenne est strictement inférieure à son seuil
+ * - Les moyennes d'UE, leurs bornes min/max, puis la moyenne de semestre
+ *   sont arrondies au centième (half up) avant comparaison. Seule cette
+ *   valeur affichée est confrontée aux seuils.
+ * - Une UE dont la moyenne affichée est strictement inférieure à son seuil
  *   d'élimination est dite "éliminatoire" : elle bloque toute compensation,
  *   même si la moyenne générale du semestre est >= 10/20.
- * - Une UE dont la moyenne se situe entre le seuil d'élimination et le seuil
- *   de validation peut malgré tout être validée par compensation si la
- *   moyenne du semestre (ou de l'année) atteint 10/20.
+ * - Une UE dont la moyenne affichée se situe entre le seuil d'élimination
+ *   et le seuil de validation peut malgré tout être validée par compensation
+ *   si la moyenne affichée du semestre atteint 10/20.
  */
 
 /** Note sur l'échelle française standard de 0 à 20. */
@@ -140,39 +143,61 @@ export interface UEResult {
   isComplete: boolean;
   /**
    * `true` si l'élimination est active pour cette UE ET que son issue est
-   * verrouillée sous le seuil d'élimination : soit l'UE est complète avec
-   * une moyenne sous le seuil, soit même 20/20 à toutes les matières
-   * restantes ne suffirait pas à repasser au-dessus (`maxPossible` sous le
-   * seuil) — dans ce dernier cas, l'UE est déjà condamnée bien qu'encore
-   * incomplète.
+   * verrouillée sous le seuil d'élimination, au centième affiché : soit
+   * l'UE est complète avec une moyenne affichée sous le seuil, soit même
+   * 20/20 à toutes les matières restantes ne suffirait pas à repasser
+   * au-dessus (`maxPossible` arrondi encore sous le seuil) — dans ce
+   * dernier cas, l'UE est déjà condamnée bien qu'encore incomplète.
    */
   isEliminatory: boolean;
   /**
-   * `true` si l'issue est verrouillée AU-DESSUS du seuil de validation :
-   * même 0/20 à toutes les matières restantes suffirait encore
-   * (`minPossible` atteint déjà le seuil). Couvre aussi, trivialement, le
-   * cas d'une UE complète déjà au-dessus de son seuil.
+   * `true` si l'issue est verrouillée AU-DESSUS du seuil de validation,
+   * au centième affiché : même 0/20 à toutes les matières restantes
+   * suffirait encore (`minPossible` arrondi atteint déjà le seuil).
+   * Couvre aussi, trivialement, le cas d'une UE complète déjà au-dessus
+   * de son seuil.
    */
   isValidated: boolean;
   /**
    * `true` si l'élimination n'est pas déclenchée mais que l'issue est
-   * verrouillée SOUS le seuil de validation : même 20/20 à toutes les
-   * matières restantes ne suffirait pas à l'atteindre (`maxPossible` sous
-   * le seuil). Cette UE aura besoin d'être compensée par le reste du
-   * semestre, quoi qu'il arrive dans ses propres matières encore en
-   * attente.
+   * verrouillée SOUS le seuil de validation, au centième affiché : même
+   * 20/20 à toutes les matières restantes ne suffirait pas à l'atteindre
+   * (`maxPossible` arrondi sous le seuil). Cette UE aura besoin d'être
+   * compensée par le reste du semestre, quoi qu'il arrive dans ses
+   * propres matières encore en attente.
    */
   needsCompensation: boolean;
+}
+
+/**
+ * Fourchette affichée tant que le semestre est incomplet.
+ * Plancher et plafond sont arrondis au centième (même politique que le
+ * chiffre unique d'un semestre complet).
+ */
+export interface SemesterAverageRange {
+  /** Examens sans note effective comptés 0/20, poids réel de chaque matière. */
+  floor: number;
+  /** Examens sans note effective comptés 20/20, poids réel de chaque matière. */
+  ceiling: number;
 }
 
 /** Résultat complet du calcul de moyenne d'un semestre. */
 export interface SemesterCalculationResult {
   /**
-   * Moyenne générale pondérée du semestre, calculée à partir des notes
-   * connues (réelles, verrouillées ou simulées). `null` si aucune note
-   * n'est encore connue.
+   * Chiffre unique du verdict, seulement si le semestre est complet
+   * (plus aucun examen sans note effective) : moyenne de chaque UE
+   * arrondie au centième, puis moyenne de ces UE arrondie à son tour.
+   * C'est cette valeur qui est comparée à la cible. `null` tant que le
+   * semestre est incomplet, vide, ou sans note connue.
    */
   generalAverage: number | null;
+  /**
+   * Fourchette [plancher, plafond] quand il reste au moins un examen sans
+   * note effective. `null` si le semestre est complet ou sans matière
+   * pondérée. La barre de résultats affiche cette fourchette à la place
+   * d'un chiffre unique.
+   */
+  averageRange: SemesterAverageRange | null;
   /** Statut de validation dérivé des seuils d'UE et des règles de compensation. */
   status: ValidationStatus;
   /**

@@ -9,7 +9,8 @@ import {
   type UEResult,
 } from '@/types/calculator';
 import { generateId } from '@/lib/id';
-import { Sliders, Sparkles, X } from './icons';
+import { sanitizeCoefficient, sanitizeGrade, sanitizeSimulatedGrade } from '@/lib/validation';
+import { Plus, Sliders, Sparkles, X } from './icons';
 
 interface UECardProps {
   ue: UE;
@@ -35,27 +36,27 @@ function StatusBadge({ result }: { result?: UEResult }) {
   }
   if (result.isEliminatory) {
     return (
-      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
+      <span className="rounded-full bg-status-danger-50 px-2 py-0.5 text-xs font-medium text-status-danger-700">
         Éliminatoire
       </span>
     );
   }
   if (result.isValidated) {
     return (
-      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+      <span className="rounded-full bg-status-ok-50 px-2 py-0.5 text-xs font-medium text-status-ok-700">
         Validée
       </span>
     );
   }
   if (result.needsCompensation) {
     return (
-      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+      <span className="rounded-full bg-status-warn-50 px-2 py-0.5 text-xs font-medium text-status-warn-700">
         À compenser
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+    <span className="rounded-full bg-status-info-50 px-2 py-0.5 text-xs font-medium text-status-info-700">
       En cours
     </span>
   );
@@ -68,38 +69,18 @@ function StatusBadge({ result }: { result?: UEResult }) {
  */
 function getAccentClassName(result?: UEResult): string {
   if (!result || result.average === null) return 'border-l-slate-200';
-  if (result.isEliminatory) return 'border-l-rose-500';
-  if (result.isValidated) return 'border-l-emerald-500';
-  if (result.needsCompensation) return 'border-l-amber-400';
-  return 'border-l-slate-300';
-}
-
-/**
- * Coefficient saisi : une chaîne vide ou non convertible en nombre fini
- * (ex : `Number('.')`, `Number('-')`) retombe sur `0` plutôt que `NaN`, qui
- * corromprait silencieusement tous les calculs de moyenne en aval.
- */
-function sanitizeCoefficient(raw: string): number {
-  const parsed = Number(raw);
-  return raw === '' || !Number.isFinite(parsed) ? 0 : parsed;
-}
-
-/**
- * Note réelle saisie : une chaîne vide ou non convertible en nombre fini
- * retombe sur `null` (examen non noté), jamais `NaN`.
- */
-function sanitizeGrade(raw: string): number | null {
-  if (raw === '') return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (result.isEliminatory) return 'border-l-status-danger-500';
+  if (result.isValidated) return 'border-l-status-ok-500';
+  if (result.needsCompensation) return 'border-l-status-warn-500';
+  return 'border-l-status-info-500';
 }
 
 function getAverageTextClassName(result?: UEResult): string {
   if (!result || result.average === null) return 'text-slate-400';
-  if (result.isEliminatory) return 'text-rose-700';
-  if (result.isValidated) return 'text-emerald-700';
-  if (result.needsCompensation) return 'text-amber-700';
-  return 'text-slate-600';
+  if (result.isEliminatory) return 'text-status-danger-700';
+  if (result.isValidated) return 'text-status-ok-700';
+  if (result.needsCompensation) return 'text-status-warn-700';
+  return 'text-status-info-700';
 }
 
 /** Carte éditable représentant une UE et la liste de ses matières (EC). */
@@ -179,18 +160,19 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
   // l'encadré en pointillés) et la liste déjà peuplée (sous les cartes),
   // pour garder exactement le même style aux deux endroits.
   const addECButtonClassName =
-    'mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-navy-300 hover:text-navy-700 sm:w-auto';
+    'mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-navy-300 hover:text-navy-700 sm:w-auto';
 
   const averageValue =
     result?.average !== null && result?.average !== undefined ? result.average.toFixed(2) : null;
   const averageTextClassName = getAverageTextClassName(result);
+  const isProvisional = Boolean(result && !result.isComplete && result.average !== null);
 
   const iconButtonClassName =
-    'flex min-h-11 min-w-11 items-center justify-center rounded-md p-1.5 transition-colors';
+    'flex min-h-11 min-w-11 items-center justify-center rounded-xl p-1.5 transition-colors';
 
   return (
     <div
-      className={`rounded-2xl border border-slate-200/70 bg-white p-5 shadow-premium border-l-4 ${getAccentClassName(
+      className={`animate-rise rounded-2xl border border-slate-200/70 bg-white p-5 shadow-premium border-l-4 ${getAccentClassName(
         result,
       )}`}
     >
@@ -203,7 +185,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
             type="text"
             value={ue.name}
             onChange={(e) => onChange({ ...ue, name: e.target.value })}
-            className="field w-full text-lg font-semibold sm:w-auto"
+            className="type-card-title w-full rounded-lg border border-transparent bg-transparent px-1 py-1 shadow-none outline-none transition focus:border-slate-200 focus:bg-white focus:ring-4 focus:ring-navy-500/15 sm:w-auto"
             aria-label="Nom de l'UE"
           />
           <span className="hidden sm:inline-flex">
@@ -217,8 +199,11 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
         <div className="flex items-center gap-3 sm:hidden">
           <StatusBadge result={result} />
           {averageValue !== null && (
-            <span className={`font-display text-sm tabular-nums ${averageTextClassName}`}>
-              {averageValue}/20
+            <span className="inline-flex items-baseline gap-1.5">
+              <span className={`font-sans text-sm font-semibold tabular-nums lining-nums ${averageTextClassName}`}>
+                {averageValue}/20
+              </span>
+              {isProvisional && <span className="type-meta">provisoire</span>}
             </span>
           )}
         </div>
@@ -230,6 +215,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
             Coeff. UE
             <input
               type="number"
+              inputMode="decimal"
               min={0}
               step={0.5}
               value={ue.coefficient}
@@ -238,8 +224,11 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
             />
           </label>
           {averageValue !== null && (
-            <span className={`hidden font-display text-sm tabular-nums sm:inline ${averageTextClassName}`}>
-              {averageValue}/20
+            <span className="hidden items-baseline gap-1.5 sm:inline-flex">
+              <span className={`font-sans text-sm font-semibold tabular-nums lining-nums ${averageTextClassName}`}>
+                {averageValue}/20
+              </span>
+              {isProvisional && <span className="type-meta">provisoire</span>}
             </span>
           )}
           <button
@@ -283,6 +272,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
               Seuil de validation
               <input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 max={20}
                 step={0.5}
@@ -290,7 +280,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                 onChange={(e) => updateValidationThreshold(e.target.value)}
                 className="field"
               />
-              <span className="text-[11px] font-normal text-slate-400">
+              <span className="text-xs font-normal text-slate-400">
                 Par défaut : {DEFAULT_VALIDATION_THRESHOLD}/20
               </span>
             </label>
@@ -302,7 +292,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                   <button
                     type="button"
                     onClick={() => onChange({ ...ue, eliminationThreshold: null })}
-                    className="text-[11px] font-normal text-rose-500 hover:underline"
+                    className="inline-flex min-h-11 items-center px-2 text-xs font-normal text-rose-500 hover:underline"
                   >
                     Désactiver
                   </button>
@@ -310,6 +300,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
               </span>
               <input
                 type="number"
+                inputMode="decimal"
                 min={0}
                 max={20}
                 step={0.5}
@@ -320,7 +311,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                 onChange={(e) => updateEliminationThreshold(e.target.value)}
                 className="field"
               />
-              <span className="text-[11px] font-normal text-slate-400">
+              <span className="text-xs font-normal text-slate-400">
                 {ue.eliminationThreshold === null
                   ? 'Élimination désactivée pour cette UE : entre une valeur pour la réactiver.'
                   : `Par défaut : ${DEFAULT_ELIMINATION_THRESHOLD}/20 — laisse vide pour désactiver.`}
@@ -333,8 +324,9 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
       {ue.ecs.length === 0 ? (
         // État vide : encadré en pointillés invitant à ajouter la première
         // matière, avec le bouton d'action centré dessous.
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
-          <p className="text-sm text-slate-500">Ajoute la première matière de cette UE.</p>
+        <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+          <Plus className="h-8 w-8 text-slate-300" />
+          <p className="mt-3 text-sm text-slate-500">Ajoute la première matière de cette UE.</p>
           <button type="button" onClick={addEC} className={addECButtonClassName}>
             + Ajouter une matière
           </button>
@@ -370,11 +362,12 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
 
                     {/* Coefficient : moitié de la ligne 2 sous sm, 2/12 à partir de sm */}
                     <label className="flex flex-col gap-1 sm:col-span-2">
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
                         Coeff.
                       </span>
                       <input
                         type="number"
+                        inputMode="decimal"
                         min={0}
                         step={0.5}
                         value={ec.coefficient}
@@ -390,12 +383,13 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                         texte "Scénario : X/20" pour ne pas doubler la hauteur
                         de la carte sur mobile. */}
                     <label className="flex flex-col gap-1 sm:col-span-3">
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:hidden">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400 sm:hidden">
                         Note /20
                       </span>
                       <div className="relative">
                         <input
                           type="number"
+                          inputMode="decimal"
                           min={0}
                           max={20}
                           step={0.25}
@@ -403,17 +397,14 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                           onChange={(e) => {
                             const raw = e.target.value;
                             if (isSimulating) {
-                              // Une frappe transitoire non convertible en
-                              // nombre fini (ex : "." ou "-" seuls) est
-                              // ignorée plutôt que d'écraser la simulation
-                              // avec une valeur NaN : l'utilisateur peut
-                              // continuer à taper, le champ garde sa
-                              // dernière valeur valide jusqu'à ce qu'un
-                              // nombre complet et fini soit saisi.
-                              const parsed = raw === '' ? 0 : Number(raw);
-                              if (Number.isFinite(parsed)) {
-                                updateEC(ec.id, { futureGrade: { mode: 'simulated', value: parsed } });
-                              }
+                              const parsed = sanitizeSimulatedGrade(raw);
+                              // `undefined` : frappe incomplète, on garde
+                              // la simulation en cours. `null` : champ
+                              // vidé, la simulation est annulée (jamais 0).
+                              if (parsed === undefined) return;
+                              updateEC(ec.id, {
+                                futureGrade: parsed === null ? null : { mode: 'simulated', value: parsed },
+                              });
                             } else {
                               updateEC(ec.id, { grade: sanitizeGrade(raw) });
                             }
@@ -422,14 +413,14 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                           aria-label={isSimulating ? 'Note simulée de la matière' : 'Note de la matière'}
                           className={`field ${
                             isSimulating
-                              ? 'border-dashed border-violet-300 bg-violet-50 pr-10 text-violet-700 focus:border-violet-400'
+                              ? 'border-dashed border-status-sim-500 bg-status-sim-50 pr-10 text-status-sim-700 focus:border-status-sim-700'
                               : ''
                           }`}
                         />
                         {isSimulating && (
                           <span
                             aria-hidden="true"
-                            className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+                            className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-status-sim-500 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white"
                           >
                             SIM
                           </span>
@@ -449,12 +440,12 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                         aria-pressed={isSimulating}
                         aria-label={toggleAriaLabel}
                         title={toggleTitle}
-                        className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors sm:col-span-1 sm:min-h-11 sm:flex-none sm:w-auto sm:p-1.5 sm:text-base ${
+                        className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-medium transition-colors sm:col-span-1 sm:min-h-11 sm:flex-none sm:w-auto sm:p-1.5 sm:text-base ${
                           isRealGrade
                             ? 'cursor-not-allowed border border-slate-200 bg-slate-50 text-slate-300 sm:border-0 sm:bg-transparent sm:text-slate-200'
                             : isSimulating
-                              ? 'border border-violet-200 bg-violet-100 text-violet-700 hover:bg-violet-200 sm:border-0'
-                              : 'border border-slate-200 bg-white text-slate-600 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600 sm:border-0 sm:bg-transparent sm:text-slate-400'
+                              ? 'border border-status-sim-500 bg-status-sim-50 text-status-sim-700 hover:bg-status-sim-500/10 sm:border-0'
+                              : 'border border-slate-200 bg-white text-slate-600 hover:border-status-sim-500 hover:bg-status-sim-50 hover:text-status-sim-700 sm:border-0 sm:bg-transparent sm:text-slate-400'
                         }`}
                       >
                         <Sparkles />
@@ -465,7 +456,7 @@ export function UECard({ ue, result, onChange, onRemove }: UECardProps) {
                         onClick={() => removeEC(ec.id)}
                         aria-label="Supprimer la matière"
                         title="Supprimer la matière"
-                        className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white text-sm font-medium text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 sm:col-span-1 sm:min-h-11 sm:flex-none sm:w-auto sm:border-0 sm:bg-transparent sm:p-1.5 sm:text-base sm:text-slate-400"
+                        className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 sm:col-span-1 sm:min-h-11 sm:flex-none sm:w-auto sm:border-0 sm:bg-transparent sm:p-1.5 sm:text-base sm:text-slate-400"
                       >
                         <X />
                         <span className="sm:hidden">Retirer</span>
