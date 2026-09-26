@@ -18,16 +18,16 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 /**
- * URL publique du site, utilisée pour générer des URLs absolues (OpenGraph,
- * Twitter Card, sitemap...). À définir via `NEXT_PUBLIC_SITE_URL` une fois
- * le site déployé (voir `.env.example`) ; retombe sur `localhost` en dev.
+ * URL publique du site pour les URLs absolues (OpenGraph, Twitter Card).
+ * N'accepte `NEXT_PUBLIC_SITE_URL` que si elle commence par http:// ou https://.
  */
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const rawUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const siteUrl = rawUrl && rawUrl.startsWith('http') ? rawUrl : 'https://sauvemonsemestre.fr';
 
 const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(siteUrl),
   title: {
     default: SEO_TITLE,
     template: `%s — ${SITE_NAME}`,
